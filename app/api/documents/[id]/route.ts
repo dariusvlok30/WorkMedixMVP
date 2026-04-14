@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 // GET /api/documents/[id] — returns a 1-hour signed download URL
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
