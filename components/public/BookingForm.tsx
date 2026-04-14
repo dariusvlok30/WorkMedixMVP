@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2, Plus, X } from "lucide-react";
+import { CalendarIcon, Loader2, Plus, X, UploadCloud, FileText, ImageIcon } from "lucide-react";
+import { useDropzone } from "react-dropzone";
 import { useToast } from "@/hooks/use-toast";
 import { SCREENING_TYPES } from "@/types";
+import { formatFileSize } from "@/lib/utils";
 
 const schema = z.object({
   company_name: z.string().min(2, "Required"),
@@ -40,11 +42,21 @@ function Field({ label, error, children, hint }: {
 const inputCls = "w-full h-8 text-[13px] border border-[#e5e5e5] rounded-md px-2.5 bg-white focus:outline-none focus:ring-1 focus:ring-black/20 placeholder:text-[#bbb]";
 const selectCls = `${inputCls} appearance-none`;
 
+const ACCEPTED = {
+  "application/pdf": [".pdf"],
+  "image/jpeg": [".jpg", ".jpeg"],
+  "image/png": [".png"],
+  "image/webp": [".webp"],
+};
+
 export default function BookingForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingDocs, setUploadingDocs] = useState(false);
   const [dateInput, setDateInput] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [dropError, setDropError] = useState<string | null>(null);
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -52,6 +64,26 @@ export default function BookingForm() {
   });
 
   const preferredDates = watch("preferred_dates");
+
+  const onDrop = useCallback((accepted: File[]) => {
+    setDropError(null);
+    setFiles((prev) => {
+      const existing = new Set(prev.map((f) => f.name));
+      return [...prev, ...accepted.filter((f) => !existing.has(f.name))];
+    });
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: ACCEPTED,
+    maxSize: 10 * 1024 * 1024,
+    onDropRejected: (rejected) =>
+      setDropError(rejected[0]?.errors[0]?.message ?? "File rejected"),
+  });
+
+  function removeFile(name: string) {
+    setFiles((prev) => prev.filter((f) => f.name !== name));
+  }
 
   function addDate() {
     if (!dateInput || preferredDates.includes(dateInput)) return;
@@ -63,6 +95,20 @@ export default function BookingForm() {
     setValue("preferred_dates", preferredDates.filter((x) => x !== d), { shouldValidate: true });
   }
 
+  async function uploadDocuments(bookingId: string) {
+    if (files.length === 0) return;
+    setUploadingDocs(true);
+    await Promise.allSettled(
+      files.map(async (file) => {
+        const form = new FormData();
+        form.append("file", file);
+        form.append("booking_id", bookingId);
+        await fetch("/api/public/documents", { method: "POST", body: form });
+      })
+    );
+    setUploadingDocs(false);
+  }
+
   async function onSubmit(data: FormData) {
     setSubmitting(true);
     try {
@@ -72,16 +118,27 @@ export default function BookingForm() {
         body: JSON.stringify(data),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Something went wrong");
+      const booking = await res.json();
+      await uploadDocuments(booking.id);
       router.push("/book/success");
     } catch (e) {
-      toast({ title: "Submission failed", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" });
+      toast({
+        title: "Submission failed",
+        description: e instanceof Error ? e.message : "Please try again.",
+        variant: "destructive",
+      });
       setSubmitting(false);
     }
   }
 
+  const isLoading = submitting || uploadingDocs;
+  const loadingLabel = uploadingDocs
+    ? `Uploading ${files.length} document${files.length > 1 ? "s" : ""}...`
+    : "Submitting...";
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-      {/* Section header */}
+      {/* Company Details */}
       <div>
         <p className="text-[11px] font-medium text-[#aaa] uppercase tracking-wider mb-3">Company Details</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -105,6 +162,7 @@ export default function BookingForm() {
         </div>
       </div>
 
+      {/* Screening Details */}
       <div className="border-t border-[#f0f0f0] pt-5">
         <p className="text-[11px] font-medium text-[#aaa] uppercase tracking-wider mb-3">Screening Details</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -125,7 +183,7 @@ export default function BookingForm() {
           </Field>
         </div>
 
-        {/* Dates */}
+        {/* Preferred Dates */}
         <div className="mt-3 space-y-1.5">
           <label className="text-[12px] font-medium text-[#444] block">Preferred Date(s) *</label>
           <div className="flex gap-2">
@@ -161,6 +219,7 @@ export default function BookingForm() {
         </div>
       </div>
 
+      {/* Notes */}
       <div className="border-t border-[#f0f0f0] pt-5">
         <Field label="Notes / Special Requirements">
           <textarea
@@ -172,12 +231,65 @@ export default function BookingForm() {
         </Field>
       </div>
 
+      {/* Supporting Documents */}
+      <div className="border-t border-[#f0f0f0] pt-5">
+        <p className="text-[11px] font-medium text-[#aaa] uppercase tracking-wider mb-3">Supporting Documents</p>
+        <p className="text-[12px] text-[#888] mb-3">
+          Optionally attach employee lists, previous medical records, or any other relevant documents.
+        </p>
+
+        <div
+          {...getRootProps()}
+          className={`border border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${
+            isDragActive ? "border-black bg-[#f5f5f5]" : "border-[#ddd] hover:border-[#aaa] hover:bg-[#fafafa]"
+          }`}
+        >
+          <input {...getInputProps()} />
+          <UploadCloud className="w-5 h-5 mx-auto text-[#bbb] mb-2" />
+          <p className="text-[13px] text-[#555]">
+            {isDragActive ? "Drop files here" : "Drag & drop files, or click to browse"}
+          </p>
+          <p className="text-[11px] text-[#aaa] mt-1">PDF, JPEG, PNG, WebP — max 10 MB each</p>
+        </div>
+
+        {dropError && <p className="text-[11px] text-red-500 mt-1.5">{dropError}</p>}
+
+        {files.length > 0 && (
+          <ul className="mt-3 space-y-1.5">
+            {files.map((file) => {
+              const isImg = file.type.startsWith("image/");
+              return (
+                <li key={file.name} className="flex items-center justify-between bg-[#f9f9f9] border border-[#e5e5e5] rounded-md px-3 py-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {isImg
+                      ? <ImageIcon className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                      : <FileText className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                    }
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-medium truncate">{file.name}</p>
+                      <p className="text-[11px] text-[#888]">{formatFileSize(file.size)}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(file.name)}
+                    className="ml-3 p-1 text-[#aaa] hover:text-red-500 flex-shrink-0 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
       <button
         type="submit"
-        disabled={submitting}
+        disabled={isLoading}
         className="w-full h-9 bg-black text-white text-[13px] font-medium rounded-md hover:bg-[#222] disabled:opacity-60 flex items-center justify-center gap-1.5 transition-colors"
       >
-        {submitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting...</> : "Submit Booking Request"}
+        {isLoading ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {loadingLabel}</> : "Submit Booking Request"}
       </button>
 
       <p className="text-[11px] text-[#aaa] text-center">
