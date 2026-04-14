@@ -25,9 +25,12 @@ export async function GET(
     return NextResponse.json({ error: "Document not found" }, { status: 404 });
   }
 
+  const isDownload = new URL(req.url).searchParams.get("dl") === "1";
+  const signedOptions = isDownload ? { download: doc.file_name } : undefined;
+
   const { data: signedData, error: signedError } = await supabase.storage
     .from("documents")
-    .createSignedUrl(doc.file_url, 3600); // 1 hour
+    .createSignedUrl(doc.file_url, 3600, signedOptions);
 
   if (signedError || !signedData) {
     return NextResponse.json(

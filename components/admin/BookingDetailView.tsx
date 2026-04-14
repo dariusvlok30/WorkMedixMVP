@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import StatusBadge from "./StatusBadge";
 import DocumentUpload from "./DocumentUpload";
 import DocumentList from "./DocumentList";
-import EmailModal from "./EmailModal";
+import EmailButton from "./EmailModal";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import type { Booking, BookingStatus } from "@/types";
@@ -59,7 +59,7 @@ export default function BookingDetailView({ booking: initial }: { booking: Booki
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <StatusBadge status={status} />
-          <EmailModal to={booking.email} contactName={booking.contact_person} />
+          <EmailButton to={booking.email} contactName={booking.contact_person} companyName={booking.company_name} />
         </div>
       </div>
 

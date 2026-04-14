@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Menu, X, Shield } from "lucide-react";
+import { SignedIn, SignedOut, UserButton, SignInButton } from "@clerk/nextjs";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
@@ -28,6 +29,16 @@ export default function Navbar() {
             >
               Book a Screening
             </Link>
+            <SignedIn>
+              <UserButton appearance={{ elements: { avatarBox: "w-7 h-7" } }} />
+            </SignedIn>
+            <SignedOut>
+              <SignInButton mode="redirect">
+                <button className="h-8 px-3 text-[13px] border border-[#e5e5e5] rounded-md hover:bg-[#f5f5f5] transition-colors text-[#666]">
+                  Sign in
+                </button>
+              </SignInButton>
+            </SignedOut>
           </div>
 
           <button className="md:hidden p-1.5 text-[#666] hover:text-black" onClick={() => setOpen(!open)}>
@@ -45,6 +56,18 @@ export default function Navbar() {
             <Link href="/book" className="block mt-2 h-8 px-4 text-[13px] font-medium bg-black text-white rounded-md hover:bg-[#222] text-center leading-8" onClick={() => setOpen(false)}>
               Book a Screening
             </Link>
+            <div className="pt-2 flex items-center gap-2">
+              <SignedIn>
+                <UserButton appearance={{ elements: { avatarBox: "w-7 h-7" } }} />
+              </SignedIn>
+              <SignedOut>
+                <SignInButton mode="redirect">
+                  <button className="h-8 px-3 text-[13px] border border-[#e5e5e5] rounded-md text-[#666]">
+                    Sign in
+                  </button>
+                </SignInButton>
+              </SignedOut>
+            </div>
           </div>
         )}
       </div>

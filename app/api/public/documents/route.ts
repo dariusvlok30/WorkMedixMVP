@@ -3,9 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const ALLOWED_TYPES = [
   "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/msword",
 ];
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 

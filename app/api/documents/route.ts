@@ -22,13 +22,12 @@ export async function POST(req: NextRequest) {
 
   const allowedTypes = [
     "application/pdf",
-    "image/jpeg",
-    "image/png",
-    "image/webp",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/msword",
   ];
   if (!allowedTypes.includes(file.type)) {
     return NextResponse.json(
-      { error: "Only PDF, JPEG, PNG, and WebP files are allowed" },
+      { error: "Only PDF and DOCX files are allowed" },
       { status: 400 }
     );
   }

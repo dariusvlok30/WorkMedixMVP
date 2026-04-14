@@ -2,22 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useUser } from "@clerk/nextjs";
 import { Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/bookings", label: "Bookings" },
-];
-
 export default function AdminNav() {
   const pathname = usePathname();
+  const { user } = useUser();
+  const isAdmin = (user?.publicMetadata as { role?: string })?.role === "admin";
+
+  const navItems = [
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/bookings", label: "Bookings" },
+    ...(isAdmin ? [{ href: "/settings", label: "Settings" }] : []),
+  ];
 
   return (
     <header className="bg-white border-b border-[#e5e5e5] sticky top-0 z-40">
       <div className="max-w-6xl mx-auto px-6 h-12 flex items-center justify-between">
-        {/* Logo */}
         <div className="flex items-center gap-5">
           <Link href="/dashboard" className="flex items-center gap-1.5">
             <div className="w-5 h-5 bg-black rounded flex items-center justify-center">
@@ -26,7 +28,6 @@ export default function AdminNav() {
             <span className="text-[13px] font-semibold text-black tracking-tight">WorkMedix</span>
           </Link>
 
-          {/* Nav links */}
           <nav className="flex items-center gap-1">
             {navItems.map(({ href, label }) => {
               const active = pathname === href || pathname.startsWith(href + "/");
@@ -48,13 +49,8 @@ export default function AdminNav() {
           </nav>
         </div>
 
-        {/* Right: user + public link */}
         <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            target="_blank"
-            className="text-[12px] text-[#888] hover:text-black transition-colors"
-          >
+          <Link href="/" target="_blank" className="text-[12px] text-[#888] hover:text-black transition-colors">
             View site ↗
           </Link>
           <UserButton appearance={{ elements: { avatarBox: "w-6 h-6" } }} />

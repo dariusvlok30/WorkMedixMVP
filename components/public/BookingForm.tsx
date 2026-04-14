@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2, Plus, X, UploadCloud, FileText, ImageIcon } from "lucide-react";
+import { CalendarIcon, Loader2, X, UploadCloud, FileText } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { useToast } from "@/hooks/use-toast";
 import { SCREENING_TYPES } from "@/types";
@@ -26,6 +26,11 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+interface Props {
+  defaultName?: string;
+  defaultEmail?: string;
+}
+
 function Field({ label, error, children, hint }: {
   label: string; error?: string; children: React.ReactNode; hint?: string;
 }) {
@@ -44,32 +49,54 @@ const selectCls = `${inputCls} appearance-none`;
 
 const ACCEPTED = {
   "application/pdf": [".pdf"],
-  "image/jpeg": [".jpg", ".jpeg"],
-  "image/png": [".png"],
-  "image/webp": [".webp"],
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+  "application/msword": [".doc"],
 };
+const MAX_FILES = 5;
 
-export default function BookingForm() {
+export default function BookingForm({ defaultName = "", defaultEmail = "" }: Props) {
   const router = useRouter();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
   const [uploadingDocs, setUploadingDocs] = useState(false);
-  const [dateInput, setDateInput] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [dropError, setDropError] = useState<string | null>(null);
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { preferred_dates: [] },
+    defaultValues: {
+      preferred_dates: [],
+      contact_person: defaultName,
+      email: defaultEmail,
+    },
   });
 
+  // Update form if props arrive after mount (SSR hydration)
+  useEffect(() => {
+    if (defaultName) setValue("contact_person", defaultName);
+    if (defaultEmail) setValue("email", defaultEmail);
+  }, [defaultName, defaultEmail, setValue]);
+
   const preferredDates = watch("preferred_dates");
+
+  function handleDateChange(val: string) {
+    if (!val || preferredDates.includes(val)) return;
+    setValue("preferred_dates", [...preferredDates, val], { shouldValidate: true });
+  }
+
+  function removeDate(d: string) {
+    setValue("preferred_dates", preferredDates.filter((x) => x !== d), { shouldValidate: true });
+  }
 
   const onDrop = useCallback((accepted: File[]) => {
     setDropError(null);
     setFiles((prev) => {
-      const existing = new Set(prev.map((f) => f.name));
-      return [...prev, ...accepted.filter((f) => !existing.has(f.name))];
+      const combined = [...prev, ...accepted.filter((f) => !prev.find((p) => p.name === f.name))];
+      if (combined.length > MAX_FILES) {
+        setDropError(`Maximum ${MAX_FILES} files allowed.`);
+        return prev;
+      }
+      return combined;
     });
   }, []);
 
@@ -77,22 +104,14 @@ export default function BookingForm() {
     onDrop,
     accept: ACCEPTED,
     maxSize: 10 * 1024 * 1024,
+    maxFiles: MAX_FILES,
     onDropRejected: (rejected) =>
-      setDropError(rejected[0]?.errors[0]?.message ?? "File rejected"),
+      setDropError(rejected[0]?.errors[0]?.message ?? "File rejected — PDF or DOCX only, max 10 MB"),
   });
 
   function removeFile(name: string) {
     setFiles((prev) => prev.filter((f) => f.name !== name));
-  }
-
-  function addDate() {
-    if (!dateInput || preferredDates.includes(dateInput)) return;
-    setValue("preferred_dates", [...preferredDates, dateInput], { shouldValidate: true });
-    setDateInput("");
-  }
-
-  function removeDate(d: string) {
-    setValue("preferred_dates", preferredDates.filter((x) => x !== d), { shouldValidate: true });
+    setDropError(null);
   }
 
   async function uploadDocuments(bookingId: string) {
@@ -133,7 +152,7 @@ export default function BookingForm() {
 
   const isLoading = submitting || uploadingDocs;
   const loadingLabel = uploadingDocs
-    ? `Uploading ${files.length} document${files.length > 1 ? "s" : ""}...`
+    ? `Uploading ${files.length} file${files.length > 1 ? "s" : ""}...`
     : "Submitting...";
 
   return (
@@ -183,25 +202,16 @@ export default function BookingForm() {
           </Field>
         </div>
 
-        {/* Preferred Dates */}
+        {/* Preferred Dates — auto-add on select */}
         <div className="mt-3 space-y-1.5">
           <label className="text-[12px] font-medium text-[#444] block">Preferred Date(s) *</label>
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={dateInput}
-              onChange={(e) => setDateInput(e.target.value)}
-              min={new Date().toISOString().split("T")[0]}
-              className={`${inputCls} flex-1`}
-            />
-            <button
-              type="button"
-              onClick={addDate}
-              className="h-8 w-8 border border-[#e5e5e5] rounded-md flex items-center justify-center hover:bg-[#f5f5f5] transition-colors text-[#666]"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <input
+            type="date"
+            onChange={(e) => { handleDateChange(e.target.value); e.target.value = ""; }}
+            min={new Date().toISOString().split("T")[0]}
+            className={inputCls}
+          />
+          <p className="text-[11px] text-[#aaa]">Select a date to add it — you can add multiple.</p>
           {preferredDates.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-1">
               {preferredDates.map((d) => (
@@ -233,53 +243,49 @@ export default function BookingForm() {
 
       {/* Supporting Documents */}
       <div className="border-t border-[#f0f0f0] pt-5">
-        <p className="text-[11px] font-medium text-[#aaa] uppercase tracking-wider mb-3">Supporting Documents</p>
+        <p className="text-[11px] font-medium text-[#aaa] uppercase tracking-wider mb-1">Supporting Documents</p>
         <p className="text-[12px] text-[#888] mb-3">
-          Optionally attach employee lists, previous medical records, or any other relevant documents.
+          Attach employee lists, previous records, or relevant documents. PDF or DOCX only, max {MAX_FILES} files, 10 MB each.
         </p>
 
-        <div
-          {...getRootProps()}
-          className={`border border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${
-            isDragActive ? "border-black bg-[#f5f5f5]" : "border-[#ddd] hover:border-[#aaa] hover:bg-[#fafafa]"
-          }`}
-        >
-          <input {...getInputProps()} />
-          <UploadCloud className="w-5 h-5 mx-auto text-[#bbb] mb-2" />
-          <p className="text-[13px] text-[#555]">
-            {isDragActive ? "Drop files here" : "Drag & drop files, or click to browse"}
-          </p>
-          <p className="text-[11px] text-[#aaa] mt-1">PDF, JPEG, PNG, WebP — max 10 MB each</p>
-        </div>
+        {files.length < MAX_FILES && (
+          <div
+            {...getRootProps()}
+            className={`border border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors ${
+              isDragActive ? "border-black bg-[#f5f5f5]" : "border-[#ddd] hover:border-[#aaa] hover:bg-[#fafafa]"
+            }`}
+          >
+            <input {...getInputProps()} />
+            <UploadCloud className="w-5 h-5 mx-auto text-[#bbb] mb-2" />
+            <p className="text-[13px] text-[#555]">
+              {isDragActive ? "Drop files here" : "Drag & drop or click to browse"}
+            </p>
+            <p className="text-[11px] text-[#aaa] mt-1">PDF, DOCX — max 10 MB each</p>
+          </div>
+        )}
 
         {dropError && <p className="text-[11px] text-red-500 mt-1.5">{dropError}</p>}
 
         {files.length > 0 && (
           <ul className="mt-3 space-y-1.5">
-            {files.map((file) => {
-              const isImg = file.type.startsWith("image/");
-              return (
-                <li key={file.name} className="flex items-center justify-between bg-[#f9f9f9] border border-[#e5e5e5] rounded-md px-3 py-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {isImg
-                      ? <ImageIcon className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
-                      : <FileText className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
-                    }
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-medium truncate">{file.name}</p>
-                      <p className="text-[11px] text-[#888]">{formatFileSize(file.size)}</p>
-                    </div>
+            {files.map((file) => (
+              <li key={file.name} className="flex items-center justify-between bg-[#f9f9f9] border border-[#e5e5e5] rounded-md px-3 py-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-medium truncate">{file.name}</p>
+                    <p className="text-[11px] text-[#888]">{formatFileSize(file.size)}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(file.name)}
-                    className="ml-3 p-1 text-[#aaa] hover:text-red-500 flex-shrink-0 transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </li>
-              );
-            })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeFile(file.name)}
+                  className="ml-3 p-1 text-[#aaa] hover:text-red-500 flex-shrink-0 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </li>
+            ))}
           </ul>
         )}
       </div>
