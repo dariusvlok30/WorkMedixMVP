@@ -1,13 +1,21 @@
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import type { Booking } from "@/types";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT ?? 587),
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
-const FROM = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
+const FROM = `WorkMedix <${process.env.SMTP_FROM}>`;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "dariusvlok345@gmail.com";
 
 export async function sendNewBookingAlert(booking: Booking): Promise<void> {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to: ADMIN_EMAIL,
     subject: `New Booking — ${booking.company_name}`,
@@ -16,7 +24,7 @@ export async function sendNewBookingAlert(booking: Booking): Promise<void> {
 }
 
 export async function sendBookingConfirmation(booking: Booking): Promise<void> {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to: booking.email,
     subject: "Booking Request Received — WorkMedix",
@@ -29,7 +37,7 @@ export async function sendManualEmail(
   subject: string,
   body: string
 ): Promise<void> {
-  await resend.emails.send({
+  await transporter.sendMail({
     from: FROM,
     to,
     subject,
