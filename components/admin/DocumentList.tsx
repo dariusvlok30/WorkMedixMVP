@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Download, Trash2, Loader2, Image } from "lucide-react";
+import { FileText, Download, Trash2, Loader2, ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate, formatFileSize } from "@/lib/utils";
 import type { Document } from "@/types";
