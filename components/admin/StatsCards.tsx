@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams, usePathname } from "next/navigation";
+import { LayoutList, Clock, CircleCheck, CheckCircle2, XCircle, CalendarDays } from "lucide-react";
 import type { DashboardStats } from "@/types";
 
 interface Props { stats: DashboardStats; }
@@ -23,85 +24,115 @@ export default function StatsCards({ stats }: Props) {
       label: "All",
       value: stats.total,
       status: null,
-      activeClass: "bg-black text-white border-black",
-      numberClass: "text-black",
+      icon: LayoutList,
+      iconActiveClass: "text-white/70",
+      iconIdleClass: "text-[#aaa]",
+      activeClass: "bg-black border-black",
+      numberActive: "text-white",
+      labelActive: "text-white/60",
+      numberIdle: "text-black",
       isActive: activeStatus === null,
     },
     {
       label: "Pending",
       value: stats.pending,
       status: "pending",
+      icon: Clock,
+      iconActiveClass: "text-amber-500",
+      iconIdleClass: "text-amber-300",
       activeClass: "bg-amber-50 border-amber-300",
-      numberClass: "text-amber-600",
+      numberActive: "text-amber-700",
+      labelActive: "text-amber-500",
+      numberIdle: "text-amber-600",
       isActive: activeStatus === "pending",
     },
     {
       label: "Confirmed",
       value: stats.confirmed,
       status: "confirmed",
+      icon: CircleCheck,
+      iconActiveClass: "text-blue-500",
+      iconIdleClass: "text-blue-300",
       activeClass: "bg-blue-50 border-blue-300",
-      numberClass: "text-blue-600",
+      numberActive: "text-blue-700",
+      labelActive: "text-blue-500",
+      numberIdle: "text-blue-600",
       isActive: activeStatus === "confirmed",
     },
     {
       label: "Completed",
       value: stats.completed,
       status: "completed",
+      icon: CheckCircle2,
+      iconActiveClass: "text-green-500",
+      iconIdleClass: "text-green-300",
       activeClass: "bg-green-50 border-green-300",
-      numberClass: "text-green-600",
+      numberActive: "text-green-700",
+      labelActive: "text-green-500",
+      numberIdle: "text-green-600",
       isActive: activeStatus === "completed",
-    },
-    {
-      label: "This Week",
-      value: stats.thisWeek,
-      status: null,
-      activeClass: "",
-      numberClass: "text-black",
-      isActive: false,
-      noFilter: true,
     },
     {
       label: "Cancelled",
       value: stats.cancelled,
       status: "cancelled",
+      icon: XCircle,
+      iconActiveClass: "text-red-400",
+      iconIdleClass: "text-red-300",
       activeClass: "bg-red-50 border-red-300",
-      numberClass: "text-red-500",
+      numberActive: "text-red-600",
+      labelActive: "text-red-400",
+      numberIdle: "text-red-500",
       isActive: activeStatus === "cancelled",
     },
   ];
 
   return (
-    <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       {cards.map((c) => {
-        const base = "rounded-xl border px-4 py-3.5 transition-all select-none";
-        if (c.noFilter) {
-          // This Week — display only, not a filter
-          return (
-            <div key={c.label} className={`${base} bg-white border-[#e5e5e5]`}>
-              <p className="text-xl font-semibold tabular-nums text-black">{c.value}</p>
-              <p className="text-[12px] text-[#888] mt-0.5">{c.label}</p>
-            </div>
-          );
-        }
+        const Icon = c.icon;
         return (
           <Link
             key={c.label}
             href={statusHref(c.status)}
-            className={`${base} block ${
-              c.isActive
-                ? `${c.activeClass} ring-1 ring-inset ${c.status ? "ring-current/20" : "ring-white/10"}`
-                : "bg-white border-[#e5e5e5] hover:border-[#ccc] hover:bg-[#fafafa]"
-            }`}
+            className={`rounded-xl border px-4 py-3.5 transition-all select-none block group
+              ${c.isActive
+                ? `${c.activeClass} ring-1 ring-inset ring-black/5`
+                : "bg-white border-[#e5e5e5] hover:border-[#ccc] hover:shadow-sm cursor-pointer"
+              }`}
           >
-            <p className={`text-xl font-semibold tabular-nums ${c.isActive && !c.status ? "text-white" : c.numberClass}`}>
+            <div className="flex items-center justify-between mb-2">
+              <Icon className={`w-4 h-4 transition-colors ${c.isActive ? c.iconActiveClass : c.iconIdleClass}`} />
+              {!c.isActive && (
+                <span className="text-[9px] font-medium text-[#ccc] group-hover:text-[#aaa] uppercase tracking-wider transition-colors">
+                  filter
+                </span>
+              )}
+              {c.isActive && (
+                <span className={`text-[9px] font-semibold uppercase tracking-wider ${c.labelActive}`}>
+                  active
+                </span>
+              )}
+            </div>
+            <p className={`text-[22px] font-bold tabular-nums leading-none ${c.isActive ? c.numberActive : c.numberIdle}`}>
               {c.value}
             </p>
-            <p className={`text-[12px] mt-0.5 ${c.isActive && !c.status ? "text-white/70" : "text-[#888]"}`}>
+            <p className={`text-[11px] mt-1 font-medium ${c.isActive ? c.labelActive : "text-[#888]"}`}>
               {c.label}
             </p>
           </Link>
         );
       })}
+
+      {/* This Week — display only, not a filter */}
+      <div className="rounded-xl border border-[#e5e5e5] bg-white px-4 py-3.5 select-none">
+        <div className="flex items-center justify-between mb-2">
+          <CalendarDays className="w-4 h-4 text-[#ccc]" />
+          <span className="text-[9px] text-[#ddd] uppercase tracking-wider">info</span>
+        </div>
+        <p className="text-[22px] font-bold tabular-nums leading-none text-black">{stats.thisWeek}</p>
+        <p className="text-[11px] mt-1 font-medium text-[#888]">This Week</p>
+      </div>
     </div>
   );
 }
