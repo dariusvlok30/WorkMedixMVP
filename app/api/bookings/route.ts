@@ -50,6 +50,9 @@ export async function GET(req: NextRequest) {
 // POST /api/bookings — public, create new booking
 export async function POST(req: NextRequest) {
   try {
+    // Capture the authenticated user's ID if present (optional — allows anonymous too)
+    const { userId } = await auth();
+
     const body = await req.json();
 
     const {
@@ -94,6 +97,7 @@ export async function POST(req: NextRequest) {
         preferred_dates,
         notes: notes ?? null,
         status: "pending",
+        clerk_user_id: userId ?? null,
       })
       .select()
       .single();

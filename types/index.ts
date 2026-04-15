@@ -21,6 +21,7 @@ export interface Booking {
   preferred_dates: string[];
   notes: string | null;
   status: BookingStatus;
+  clerk_user_id?: string | null;
   created_at: string;
   updated_at: string;
   documents?: Document[];

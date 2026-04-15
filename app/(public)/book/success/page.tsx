@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
+import { auth } from "@clerk/nextjs/server";
 
-export default function BookingSuccessPage() {
+export default async function BookingSuccessPage() {
+  const { userId } = await auth();
   return (
     <div className="min-h-screen bg-[#f9f9f9] flex items-center justify-center px-4">
       <div className="max-w-sm w-full text-center">
@@ -17,9 +19,15 @@ export default function BookingSuccessPage() {
           <Link href="/book" className="h-8 px-4 text-[13px] border border-[#e5e5e5] rounded-md bg-white hover:bg-[#f5f5f5] transition-colors flex items-center justify-center">
             Submit another
           </Link>
-          <Link href="/" className="h-8 px-4 text-[13px] bg-black text-white rounded-md hover:bg-[#222] transition-colors flex items-center justify-center">
-            Back to home
-          </Link>
+          {userId ? (
+            <Link href="/my-bookings" className="h-8 px-4 text-[13px] bg-black text-white rounded-md hover:bg-[#222] transition-colors flex items-center justify-center">
+              View my bookings →
+            </Link>
+          ) : (
+            <Link href="/" className="h-8 px-4 text-[13px] bg-black text-white rounded-md hover:bg-[#222] transition-colors flex items-center justify-center">
+              Back to home
+            </Link>
+          )}
         </div>
       </div>
     </div>

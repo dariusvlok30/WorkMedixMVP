@@ -6,8 +6,11 @@ const isAdminRoute = createRouteMatcher([
   "/search(.*)",
 ]);
 
+const isUserRoute = createRouteMatcher(["/my-bookings(.*)"]);
+
+
 export default clerkMiddleware(async (auth, req) => {
-  if (isAdminRoute(req)) {
+  if (isAdminRoute(req) || isUserRoute(req)) {
     await auth.protect();
   }
 });

@@ -30,6 +30,7 @@ export default function Navbar() {
               Book a Screening
             </Link>
             <SignedIn>
+              <Link href="/my-bookings" className="text-[13px] text-[#666] hover:text-black transition-colors">My Bookings</Link>
               <UserButton appearance={{ elements: { avatarBox: "w-7 h-7" } }} />
             </SignedIn>
             <SignedOut>
@@ -58,6 +59,7 @@ export default function Navbar() {
             </Link>
             <div className="pt-2 flex items-center gap-2">
               <SignedIn>
+                <Link href="/my-bookings" className="text-[13px] text-[#666] hover:text-black" onClick={() => setOpen(false)}>My Bookings</Link>
                 <UserButton appearance={{ elements: { avatarBox: "w-7 h-7" } }} />
               </SignedIn>
               <SignedOut>
