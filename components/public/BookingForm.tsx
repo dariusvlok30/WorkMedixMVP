@@ -6,7 +6,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2, X, UploadCloud, FileText } from "lucide-react";
+import { CalendarIcon, Loader2, X, UploadCloud, FileText, Lock } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { useToast } from "@/hooks/use-toast";
 import { SCREENING_TYPES } from "@/types";
@@ -29,6 +29,8 @@ type FormData = z.infer<typeof schema>;
 interface Props {
   defaultName?: string;
   defaultEmail?: string;
+  /** When true the email field is locked and cannot be edited */
+  emailLocked?: boolean;
 }
 
 function Field({ label, error, children, hint }: {
@@ -54,7 +56,7 @@ const ACCEPTED = {
 };
 const MAX_FILES = 5;
 
-export default function BookingForm({ defaultName = "", defaultEmail = "" }: Props) {
+export default function BookingForm({ defaultName = "", defaultEmail = "", emailLocked = false }: Props) {
   const router = useRouter();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
@@ -168,7 +170,22 @@ export default function BookingForm({ defaultName = "", defaultEmail = "" }: Pro
             <input className={inputCls} placeholder="Jane Smith" {...register("contact_person")} />
           </Field>
           <Field label="Email Address *" error={errors.email?.message}>
-            <input className={inputCls} type="email" placeholder="jane@acme.com" {...register("email")} />
+            {emailLocked ? (
+              <div className="relative">
+                <input
+                  className={`${inputCls} bg-[#f5f5f5] text-[#888] cursor-not-allowed pr-8`}
+                  type="email"
+                  readOnly
+                  {...register("email")}
+                />
+                <Lock className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#bbb]" />
+              </div>
+            ) : (
+              <input className={inputCls} type="email" placeholder="jane@acme.com" {...register("email")} />
+            )}
+            {emailLocked && (
+              <p className="text-[11px] text-[#aaa]">Linked to your account — cannot be changed here.</p>
+            )}
           </Field>
           <Field label="Phone Number *" error={errors.phone?.message}>
             <input className={inputCls} type="tel" placeholder="+27 11 000 0000" {...register("phone")} />

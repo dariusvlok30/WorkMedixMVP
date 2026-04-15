@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, Save, Loader2, CalendarIcon, X, UploadCloud, FileText, Download, Eye } from "lucide-react";
+import { ArrowLeft, Save, Loader2, CalendarIcon, X, UploadCloud, FileText, Download, Eye, Trash2 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -49,6 +49,7 @@ export default function MyBookingDetail({ booking: initial }: { booking: Booking
   const [uploading, setUploading] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   const isDirty =
     notes !== (initial.notes ?? "") ||
@@ -123,6 +124,19 @@ export default function MyBookingDetail({ booking: initial }: { booking: Booking
     } catch {
       toast({ title: "Could not open file.", variant: "destructive" });
     } finally { setViewing(null); }
+  }
+
+  async function handleDeleteDoc(doc: Document) {
+    if (!confirm(`Delete "${doc.file_name}"? This cannot be undone.`)) return;
+    setDeleting(doc.id);
+    try {
+      const res = await fetch(`/api/documents/${doc.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      setBooking((b) => ({ ...b, documents: (b.documents ?? []).filter((d) => d.id !== doc.id) }));
+      toast({ title: "Document deleted" });
+    } catch {
+      toast({ title: "Could not delete document.", variant: "destructive" });
+    } finally { setDeleting(null); }
   }
 
   async function handleDownload(doc: Document) {
@@ -268,6 +282,9 @@ export default function MyBookingDetail({ booking: initial }: { booking: Booking
                         </button>
                         <button onClick={() => handleDownload(doc)} disabled={downloading === doc.id} className="p-1.5 text-[#888] hover:text-black rounded transition-colors" title="Download">
                           {downloading === doc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                        </button>
+                        <button onClick={() => handleDeleteDoc(doc)} disabled={deleting === doc.id} className="p-1.5 text-[#aaa] hover:text-red-500 rounded transition-colors" title="Delete">
+                          {deleting === doc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                         </button>
                       </div>
                     </li>

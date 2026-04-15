@@ -30,7 +30,12 @@ export default function Navbar() {
               Book a Screening
             </Link>
             <SignedIn>
-              <Link href="/my-bookings" className="text-[13px] text-[#666] hover:text-black transition-colors">My Bookings</Link>
+              <Link
+                href="/my-bookings"
+                className="h-7 px-3 text-[12px] font-medium border border-[#e5e5e5] rounded-full text-[#555] hover:border-black hover:text-black transition-colors flex items-center"
+              >
+                My Bookings
+              </Link>
               <UserButton appearance={{ elements: { avatarBox: "w-7 h-7" } }} />
             </SignedIn>
             <SignedOut>
@@ -59,7 +64,13 @@ export default function Navbar() {
             </Link>
             <div className="pt-2 flex items-center gap-2">
               <SignedIn>
-                <Link href="/my-bookings" className="text-[13px] text-[#666] hover:text-black" onClick={() => setOpen(false)}>My Bookings</Link>
+                <Link
+                  href="/my-bookings"
+                  className="h-7 px-3 text-[12px] font-medium border border-[#e5e5e5] rounded-full text-[#555] hover:border-black hover:text-black transition-colors flex items-center"
+                  onClick={() => setOpen(false)}
+                >
+                  My Bookings
+                </Link>
                 <UserButton appearance={{ elements: { avatarBox: "w-7 h-7" } }} />
               </SignedIn>
               <SignedOut>

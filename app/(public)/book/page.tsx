@@ -56,7 +56,7 @@ export default async function BookingPage() {
           </p>
         </div>
         <div className="bg-white rounded-xl border border-[#e5e5e5] p-6">
-          <BookingForm defaultName={defaultName} defaultEmail={defaultEmail} />
+          <BookingForm defaultName={defaultName} defaultEmail={defaultEmail} emailLocked={!!defaultEmail} />
         </div>
       </div>
     </div>
