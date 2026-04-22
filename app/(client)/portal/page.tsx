@@ -66,7 +66,7 @@ export default async function PortalPage() {
   type WorkerRow = { id: string; first_name: string; last_name: string; id_number: string; date_of_birth: string | null; gender: string | null; fitness_certificates?: CertRow[] };
 
   const workerList: WorkerRow[] = workers
-    .map((w) => (w.worker as WorkerRow | null))
+    .map((w) => (w.worker as unknown as WorkerRow | null))
     .filter((w): w is WorkerRow => w !== null);
 
   const fitCount = workerList.filter((w) => {
