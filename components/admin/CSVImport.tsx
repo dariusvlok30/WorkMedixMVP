@@ -33,7 +33,7 @@ function parseCSV(text: string): ParsedRow[] {
     const values = line.split(",").map((v) => v.trim().replace(/^"|"$/g, ""));
     const row: Record<string, string> = {};
     headers.forEach((h, i) => { row[h] = values[i] ?? ""; });
-    return row as ParsedRow;
+    return row as unknown as ParsedRow;
   }).filter((r) => r.id_number && r.first_name && r.last_name);
 }
 
