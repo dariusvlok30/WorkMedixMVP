@@ -97,7 +97,8 @@ export default async function DashboardPage() {
         ) : (
           <div className="bg-white border border-[#e5e5e5] rounded-xl divide-y divide-[#f0f0f0] overflow-hidden">
             {recentSessions.map((s) => {
-              const company = (s.companies as { name: string } | null)?.name ?? "—";
+              const co = s.companies as unknown as { name: string } | { name: string }[] | null;
+              const company = (Array.isArray(co) ? co[0]?.name : co?.name) ?? "—";
               const dateStr = s.session_date
                 ? new Date(s.session_date).toLocaleDateString("en-ZA", {
                     day: "2-digit",
