@@ -10,19 +10,19 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!user) redirect("/admin");
   if (!(await isAdmin())) {
     return (
-      <div className="min-h-screen bg-[#0c0c0c] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center">
         <div className="text-center">
           <p className="text-[15px] font-semibold text-white">Access Denied</p>
-          <p className="text-[13px] text-[#888] mt-1">You don&apos;t have admin access.</p>
+          <p className="text-[13px] text-[#555] mt-1">You don&apos;t have admin access.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-[#0c0c0c]">
+    <div className="flex h-screen bg-[#0a0a0a]">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-[#f9f9f9] p-8">{children}</main>
+      <main className="flex-1 overflow-y-auto bg-[#0a0a0a] p-8">{children}</main>
       <Toaster />
     </div>
   );

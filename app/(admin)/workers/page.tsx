@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
-  UserPlus, Upload, Search, ChevronRight, Loader2, Users,
+  UserPlus, Search, ChevronRight, Loader2, Users,
 } from "lucide-react";
 import WorkerForm from "@/components/admin/WorkerForm";
 import WorkerSearch from "@/components/admin/WorkerSearch";
@@ -66,13 +66,6 @@ export default function WorkersPage() {
               <Search className="w-3.5 h-3.5" />
               ID Lookup
             </button>
-            <Link
-              href="/workers/import"
-              className="flex items-center gap-2 px-3 py-1.5 text-[13px] text-[#aaa] border border-[#2a2a2a] rounded-md hover:border-[#444] hover:text-white transition-colors"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              Import CSV
-            </Link>
             <button
               onClick={() => setModal("new")}
               className="flex items-center gap-2 px-3 py-1.5 text-[13px] bg-white text-black font-medium rounded-md hover:bg-[#e5e5e5] transition-colors"
