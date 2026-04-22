@@ -2,13 +2,13 @@ import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
 import AdminNav from "@/components/admin/AdminNav";
+import { isAdmin } from "@/lib/isAdmin";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
 
-  // Must be signed in AND have admin role
   if (!user) redirect("/admin");
-  if ((user.publicMetadata as { role?: string })?.role !== "admin") {
+  if (!(await isAdmin())) {
     // Signed in but not an admin — show access denied
     return (
       <div className="min-h-screen bg-[#f9f9f9] flex items-center justify-center">

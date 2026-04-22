@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
+import { isAdmin } from "@/lib/isAdmin";
 
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const caller = await currentUser();
-  if ((caller?.publicMetadata as { role?: string })?.role !== "admin") {
+  if (!(await isAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

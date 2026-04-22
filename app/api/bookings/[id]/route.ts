@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-async function isAdmin(): Promise<boolean> {
-  const user = await currentUser();
-  return (user?.publicMetadata as { role?: string })?.role === "admin";
-}
+import { isAdmin } from "@/lib/isAdmin";
 
 // GET /api/bookings/[id] — admin OR booking owner
 export async function GET(
