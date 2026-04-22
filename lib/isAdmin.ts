@@ -14,12 +14,15 @@ export async function isAdmin(): Promise<boolean> {
   )?.emailAddress;
   if (!email) return false;
 
-  const supabase = createAdminClient();
-  const { data } = await supabase
-    .from("admins")
-    .select("email")
-    .eq("email", email)
-    .single();
-
-  return Boolean(data);
+  try {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("admins")
+      .select("email")
+      .eq("email", email)
+      .single();
+    return Boolean(data);
+  } catch {
+    return false;
+  }
 }
