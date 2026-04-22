@@ -8,11 +8,21 @@ import {
   CalendarCheck,
   ExternalLink,
   Shield,
+  Users,
+  Building2,
+  Stethoscope,
+  Award,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/workers", label: "Workers", icon: Users },
+  { href: "/companies", label: "Companies", icon: Building2 },
+  { href: "/sessions", label: "Sessions", icon: Stethoscope },
+  { href: "/certificates", label: "Certificates", icon: Award },
+  { href: "/packages", label: "Packages", icon: Package },
   { href: "/bookings", label: "Bookings", icon: CalendarCheck },
 ];
 
