@@ -43,13 +43,22 @@ export default async function CertificateDetailPage({ params }: { params: Promis
           <Link href="/certificates" className="inline-flex items-center gap-1.5 text-[13px] text-[#666] hover:text-white transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" /> Certificates
           </Link>
-          <a
-            href={`/certificates/${id}/print`}
-            target="_blank"
-            className="flex items-center gap-2 px-3 py-1.5 text-[13px] bg-white text-black font-medium rounded-md hover:bg-[#e5e5e5] transition-colors"
-          >
-            <Printer className="w-3.5 h-3.5" /> Print Certificate
-          </a>
+          <div className="flex gap-2">
+            <a
+              href={`/certificates/${id}/annexure3`}
+              target="_blank"
+              className="flex items-center gap-2 px-3 py-1.5 text-[13px] bg-[#1f1f1f] text-[#aaa] border border-[#2a2a2a] font-medium rounded-md hover:text-white transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print Annexure 3
+            </a>
+            <a
+              href={`/certificates/${id}/print`}
+              target="_blank"
+              className="flex items-center gap-2 px-3 py-1.5 text-[13px] bg-white text-black font-medium rounded-md hover:bg-[#e5e5e5] transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" /> Print COF
+            </a>
+          </div>
         </div>
 
         {/* Status banner */}

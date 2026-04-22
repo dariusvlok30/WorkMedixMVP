@@ -1,108 +1,133 @@
-import { Suspense } from "react";
+import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { addDays, startOfDay, endOfDay } from "date-fns";
-import StatsCards from "@/components/admin/StatsCards";
-import BookingsMasterList from "@/components/admin/BookingsMasterList";
-import type { Booking, DashboardStats } from "@/types";
+import { startOfDay } from "date-fns";
 
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 50;
+const SESSION_STATUS_COLOR: Record<string, string> = {
+  scheduled: "bg-blue-100 text-blue-700",
+  in_progress: "bg-yellow-100 text-yellow-700",
+  completed: "bg-green-100 text-green-700",
+  cancelled: "bg-red-100 text-red-700",
+};
 
-async function getData(params: Record<string, string>) {
+async function getData() {
   const supabase = createAdminClient();
+  const todayStart = startOfDay(new Date()).toISOString();
 
-  const page   = Math.max(1, parseInt(params.page ?? "1", 10));
-  const offset = (page - 1) * PAGE_SIZE;
-  const status = params.status;
-  const search = params.search;
-  const from   = params.from;
-  const to     = params.to;
+  const [
+    { count: totalWorkers },
+    { data: sessions },
+    { count: todayScreenings },
+    { count: totalCerts },
+    { data: recentSessions },
+  ] = await Promise.all([
+    supabase.from("workers").select("id", { count: "exact", head: true }),
+    supabase.from("screening_sessions").select("id, status"),
+    supabase
+      .from("screening_results")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", todayStart),
+    supabase.from("fitness_certificates").select("id", { count: "exact", head: true }),
+    supabase
+      .from("screening_sessions")
+      .select("id, session_date, status, companies(name)")
+      .order("session_date", { ascending: false })
+      .limit(10),
+  ]);
 
-  // ── Stats: always unfiltered counts ──────────────────────────────
-  const { data: allRows } = await supabase
-    .from("bookings")
-    .select("id, status, preferred_dates");
+  const activeSessions = (sessions ?? []).filter((s) =>
+    ["scheduled", "in_progress"].includes(s.status)
+  ).length;
 
-  const all = allRows ?? [];
-  const now       = new Date();
-  const weekStart = startOfDay(now).toISOString().split("T")[0];
-  const weekEnd   = endOfDay(addDays(now, 7)).toISOString().split("T")[0];
-
-  const stats: DashboardStats = {
-    total:     all.length,
-    pending:   all.filter((b) => b.status === "pending").length,
-    confirmed: all.filter((b) => b.status === "confirmed").length,
-    completed: all.filter((b) => b.status === "completed").length,
-    cancelled: all.filter((b) => b.status === "cancelled").length,
-    thisWeek:  all.filter((b) =>
-      (b.preferred_dates as string[]).some((d) => d >= weekStart && d <= weekEnd)
-    ).length,
+  return {
+    totalWorkers: totalWorkers ?? 0,
+    activeSessions,
+    todayScreenings: todayScreenings ?? 0,
+    totalCerts: totalCerts ?? 0,
+    recentSessions: recentSessions ?? [],
   };
-
-  // ── Filtered + paginated bookings ────────────────────────────────
-  let query = supabase
-    .from("bookings")
-    .select("*, documents(id, file_name, file_type, file_size)", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(offset, offset + PAGE_SIZE - 1);
-
-  if (status && status !== "all") query = query.eq("status", status);
-  if (from) query = query.gte("created_at", from);
-  if (to)   query = query.lte("created_at", to + "T23:59:59");
-  if (search) {
-    query = query.or(
-      `company_name.ilike.%${search}%,contact_person.ilike.%${search}%,email.ilike.%${search}%`
-    );
-  }
-
-  const { data, count } = await query;
-  const total      = count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  return { stats, bookings: (data ?? []) as Booking[], total, page, totalPages };
 }
 
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string>>;
-}) {
-  const params = await searchParams;
-  const { stats, bookings, total, page, totalPages } = await getData(params);
+export default async function DashboardPage() {
+  const { totalWorkers, activeSessions, todayScreenings, totalCerts, recentSessions } =
+    await getData();
 
-  const statusLabel = params.status
-    ? params.status.charAt(0).toUpperCase() + params.status.slice(1)
-    : null;
+  const stats = [
+    { label: "Total Workers", value: totalWorkers, href: "/workers" },
+    { label: "Active Sessions", value: activeSessions, href: "/sessions" },
+    { label: "Screenings Today", value: todayScreenings, href: "/sessions" },
+    { label: "Certs Issued", value: totalCerts, href: "/certificates" },
+  ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-[18px] font-semibold text-black">
-          {statusLabel ? `${statusLabel} Bookings` : "Dashboard"}
-        </h1>
-        <p className="text-[13px] text-[#888] mt-0.5">
-          {statusLabel
-            ? `Filtered to ${statusLabel.toLowerCase()} — click a card to change.`
-            : "Click a status card to filter the list below."}
-        </p>
+        <h1 className="text-[18px] font-semibold text-black">Dashboard</h1>
+        <p className="text-[13px] text-[#888] mt-0.5">Occupational health screening overview.</p>
       </div>
 
-      {/* Stats cards — client component needs Suspense for useSearchParams */}
-      <Suspense fallback={<div className="h-[76px] rounded-xl bg-[#f5f5f5] animate-pulse" />}>
-        <StatsCards stats={stats} />
-      </Suspense>
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {stats.map(({ label, value, href }) => (
+          <Link
+            key={label}
+            href={href}
+            className="bg-white border border-[#e5e5e5] rounded-xl p-5 hover:border-[#ccc] transition-colors"
+          >
+            <p className="text-[28px] font-bold text-black leading-none">{value}</p>
+            <p className="text-[12px] text-[#888] mt-1">{label}</p>
+          </Link>
+        ))}
+      </div>
 
-      {/* Master bookings list */}
-      <Suspense fallback={<div className="h-64 rounded-xl bg-[#f5f5f5] animate-pulse" />}>
-        <BookingsMasterList
-          bookings={bookings}
-          total={total}
-          page={page}
-          totalPages={totalPages}
-          pageSize={PAGE_SIZE}
-        />
-      </Suspense>
+      {/* Recent sessions */}
+      <div>
+        <h2 className="text-[14px] font-semibold text-black mb-3">Recent Sessions</h2>
+        {recentSessions.length === 0 ? (
+          <div className="bg-white border border-[#e5e5e5] rounded-xl p-8 text-center">
+            <p className="text-[13px] text-[#888]">No sessions yet.</p>
+            <Link
+              href="/sessions/new"
+              className="mt-3 inline-block text-[13px] font-medium text-black underline underline-offset-2"
+            >
+              Create first session →
+            </Link>
+          </div>
+        ) : (
+          <div className="bg-white border border-[#e5e5e5] rounded-xl divide-y divide-[#f0f0f0] overflow-hidden">
+            {recentSessions.map((s) => {
+              const company = (s.companies as { name: string } | null)?.name ?? "—";
+              const dateStr = s.session_date
+                ? new Date(s.session_date).toLocaleDateString("en-ZA", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "—";
+              return (
+                <Link
+                  key={s.id}
+                  href={`/sessions/${s.id}`}
+                  className="flex items-center justify-between px-5 py-3 hover:bg-[#fafafa] transition-colors"
+                >
+                  <div>
+                    <p className="text-[13px] font-medium text-black">{company}</p>
+                    <p className="text-[12px] text-[#888]">{dateStr}</p>
+                  </div>
+                  <span
+                    className={`text-[11px] font-medium px-2 py-0.5 rounded-full capitalize ${
+                      SESSION_STATUS_COLOR[s.status] ?? "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {s.status.replace("_", " ")}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, User, ChevronRight, Check, Loader2, Award,
   AlertCircle, Wind, Ear, Eye, Heart, Scale, FlaskConical,
+  Wifi, WifiOff, Plug,
 } from "lucide-react";
 import type {
   WorkerAppointment, ScreeningSession, TestType, ResultStatus,
@@ -13,11 +14,122 @@ import type {
 import { TEST_TYPE_LABELS, FITNESS_STATUS_LABELS, FITNESS_STATUS_COLORS } from "@/types";
 import { cn } from "@/lib/utils";
 
+// ─── Device bridge WebSocket hook ────────────────────────────────────────────
+
+function useDeviceBridge(onData: (deviceType: string, data: Record<string, unknown>) => void) {
+  const ws = useRef<WebSocket | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const onDataRef = useRef(onData);
+  onDataRef.current = onData;
+
+  function connect() {
+    if (ws.current?.readyState === WebSocket.OPEN) return;
+    setError(null);
+    try {
+      const socket = new WebSocket("ws://localhost:3001");
+      socket.onopen = () => setConnected(true);
+      socket.onclose = () => setConnected(false);
+      socket.onerror = () => {
+        setConnected(false);
+        setError("Bridge not reachable — is the device bridge running?");
+      };
+      socket.onmessage = (e) => {
+        try {
+          const { device_type, data } = JSON.parse(e.data);
+          onDataRef.current(device_type, data);
+        } catch {}
+      };
+      ws.current = socket;
+    } catch {
+      setError("Could not connect to bridge service.");
+    }
+  }
+
+  function disconnect() {
+    ws.current?.close();
+    ws.current = null;
+    setConnected(false);
+    setError(null);
+  }
+
+  useEffect(() => () => { ws.current?.close(); }, []);
+
+  return { connected, error, connect, disconnect };
+}
+
+// ─── Device panel ─────────────────────────────────────────────────────────────
+
+function DevicePanel({
+  connected,
+  error,
+  onConnect,
+  onDisconnect,
+  lastDevice,
+}: {
+  connected: boolean;
+  error: string | null;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  lastDevice: string | null;
+}) {
+  return (
+    <div className={cn(
+      "flex items-center gap-3 px-4 py-2 border-b text-[12px]",
+      connected ? "border-[#1f2f1f] bg-[#0c150c]" : "border-[#1f1f1f] bg-[#0c0c0c]"
+    )}>
+      <div className="flex items-center gap-2">
+        {connected
+          ? <Wifi className="w-3.5 h-3.5 text-green-400" />
+          : <WifiOff className="w-3.5 h-3.5 text-[#555]" />}
+        <span className={connected ? "text-green-400" : "text-[#555]"}>
+          {connected ? "Bridge connected" : "Bridge disconnected"}
+        </span>
+        {connected && lastDevice && (
+          <span className="text-[#777] ml-1">· last: {lastDevice}</span>
+        )}
+      </div>
+
+      {error && (
+        <span className="text-amber-500 flex-1 truncate">{error}</span>
+      )}
+
+      <div className="ml-auto">
+        {connected ? (
+          <button
+            onClick={onDisconnect}
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-[#1f1f1f] text-[#aaa] hover:text-white rounded transition-colors"
+          >
+            Disconnect
+          </button>
+        ) : (
+          <button
+            onClick={onConnect}
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-[#1a2a1a] text-green-400 hover:bg-[#1f301f] rounded transition-colors"
+          >
+            <Plug className="w-3 h-3" /> Connect Device Bridge
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Test form renderers ──────────────────────────────────────────────────────
 
 function SpirometryForm({ data, onChange }: { data: Record<string, unknown>; onChange: (d: Record<string, unknown>) => void }) {
   const f = (k: string) => String(data[k] ?? "");
   const s = (k: string, v: string) => onChange({ ...data, [k]: v });
+
+  const ratio = parseFloat(f("fev1_fvc_ratio"));
+  const fev1pct = parseFloat(f("fev1_percent"));
+  let hint = "";
+  if (!isNaN(ratio)) {
+    if (ratio < 0.7) hint = fev1pct < 80 ? "Possible obstruction" : "Possible restriction";
+    else if (fev1pct < 80) hint = "Possible restriction";
+    else hint = "Normal pattern";
+  }
+
   const fields: Array<{ key: string; label: string; unit: string }> = [
     { key: "fvc_actual", label: "FVC Actual", unit: "L" },
     { key: "fvc_predicted", label: "FVC Predicted", unit: "L" },
@@ -32,11 +144,16 @@ function SpirometryForm({ data, onChange }: { data: Record<string, unknown>; onC
       <div className="grid grid-cols-3 gap-2">
         {fields.map(({ key, label, unit }) => (
           <div key={key}>
-            <label className="block text-[11px] text-[#666] mb-1">{label} {unit && <span className="text-[#444]">({unit})</span>}</label>
+            <label className="block text-[11px] text-[#666] mb-1">{label}{unit && <span className="text-[#444]"> ({unit})</span>}</label>
             <input type="number" step="0.01" value={f(key)} onChange={(e) => s(key, e.target.value)} className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded px-2.5 py-1.5 text-[13px] text-white focus:outline-none focus:border-[#444]" />
           </div>
         ))}
       </div>
+      {hint && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] rounded text-[12px] text-[#aaa]">
+          <span className="text-[#555]">↳</span> {hint}
+        </div>
+      )}
       <div>
         <label className="block text-[11px] text-[#666] mb-1">Interpretation</label>
         <input type="text" value={f("interpretation")} onChange={(e) => s("interpretation", e.target.value)} placeholder="Normal / Restrictive / Obstructive / Mixed" className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded px-2.5 py-1.5 text-[13px] text-white placeholder:text-[#555] focus:outline-none focus:border-[#444]" />
@@ -134,6 +251,18 @@ function VisionForm({ data, onChange }: { data: Record<string, unknown>; onChang
 function BloodPressureForm({ data, onChange }: { data: Record<string, unknown>; onChange: (d: Record<string, unknown>) => void }) {
   const f = (k: string) => String(data[k] ?? "");
   const s = (k: string, v: string) => onChange({ ...data, [k]: v });
+
+  const sys = parseInt(f("systolic"));
+  const dia = parseInt(f("diastolic"));
+  let bpHint = "";
+  if (!isNaN(sys) && !isNaN(dia)) {
+    if (sys >= 180 || dia >= 120) bpHint = "Hypertensive crisis — refer urgently";
+    else if (sys >= 140 || dia >= 90) bpHint = "Stage 2 hypertension";
+    else if (sys >= 130 || dia >= 80) bpHint = "Stage 1 hypertension";
+    else if (sys >= 120) bpHint = "Elevated";
+    else bpHint = "Normal";
+  }
+
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
@@ -144,6 +273,11 @@ function BloodPressureForm({ data, onChange }: { data: Record<string, unknown>; 
           </div>
         ))}
       </div>
+      {bpHint && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] rounded text-[12px] text-[#aaa]">
+          <span className="text-[#555]">↳</span> {bpHint}
+        </div>
+      )}
       <div>
         <label className="block text-[11px] text-[#666] mb-1">Interpretation</label>
         <input type="text" value={f("interpretation")} onChange={(e) => s("interpretation", e.target.value)} placeholder="Normal / Pre-hypertension / Stage 1 / Stage 2" className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded px-2.5 py-1.5 text-[13px] text-white placeholder:text-[#555] focus:outline-none focus:border-[#444]" />
@@ -158,11 +292,11 @@ function HeightWeightForm({ data, onChange }: { data: Record<string, unknown>; o
     const updated = { ...data, [k]: v };
     const h = parseFloat(String(updated.height_cm));
     const w = parseFloat(String(updated.weight_kg));
-    if (h > 0 && w > 0) {
-      updated.bmi = Math.round((w / ((h / 100) * (h / 100))) * 10) / 10;
-    }
+    if (h > 0 && w > 0) updated.bmi = Math.round((w / ((h / 100) * (h / 100))) * 10) / 10;
     onChange(updated);
   };
+  const bmi = parseFloat(f("bmi"));
+  const bmiHint = !isNaN(bmi) ? (bmi < 18.5 ? "Underweight" : bmi < 25 ? "Normal" : bmi < 30 ? "Overweight" : "Obese") : "";
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
@@ -173,6 +307,11 @@ function HeightWeightForm({ data, onChange }: { data: Record<string, unknown>; o
           </div>
         ))}
       </div>
+      {bmiHint && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1a1a1a] rounded text-[12px] text-[#aaa]">
+          <span className="text-[#555]">↳</span> BMI {f("bmi")} — {bmiHint}
+        </div>
+      )}
       <div>
         <label className="block text-[11px] text-[#666] mb-1">Interpretation</label>
         <input type="text" value={f("interpretation")} onChange={(e) => s("interpretation", e.target.value)} placeholder="Normal / Overweight / Obese / Underweight" className="w-full bg-[#1a1a1a] border border-[#2a2a2a] rounded px-2.5 py-1.5 text-[13px] text-white placeholder:text-[#555] focus:outline-none focus:border-[#444]" />
@@ -251,6 +390,14 @@ const TEST_ICONS: Record<TestType, React.ElementType> = {
   general: User,
 };
 
+// Map device bridge device_type values to TestType keys
+const DEVICE_TO_TEST: Record<string, TestType> = {
+  spirometer: "spirometry",
+  audiometer: "audiometry",
+  keystone: "vision",
+  bp_monitor: "blood_pressure",
+};
+
 const STATUS_OPTIONS: Array<{ value: ResultStatus; label: string; color: string }> = [
   { value: "normal", label: "Normal", color: "bg-green-500" },
   { value: "borderline", label: "Borderline", color: "bg-amber-500" },
@@ -274,8 +421,8 @@ function ClinicContent() {
   const [savedResults, setSavedResults] = useState<Record<string, ResultStatus>>({});
   const [savingTest, setSavingTest] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [lastDevice, setLastDevice] = useState<string | null>(null);
 
-  // Certificate state
   const [showCert, setShowCert] = useState(false);
   const [certForm, setCertForm] = useState({
     fitness_status: "fit" as string,
@@ -285,6 +432,20 @@ function ClinicContent() {
   });
   const [issuingCert, setIssuingCert] = useState(false);
 
+  const activeTestRef = useRef(activeTest);
+  activeTestRef.current = activeTest;
+
+  const { connected, error: bridgeError, connect, disconnect } = useDeviceBridge(
+    useCallback((deviceType: string, data: Record<string, unknown>) => {
+      const testType = DEVICE_TO_TEST[deviceType];
+      if (!testType) return;
+      setLastDevice(deviceType);
+      // Switch to the incoming test and pre-fill data
+      setActiveTest(testType);
+      setTestData(data);
+    }, [])
+  );
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     const res = await fetch(`/api/sessions/${params.id}`);
@@ -292,18 +453,16 @@ function ClinicContent() {
     setSession(data.session);
     const appts: WorkerAppointment[] = data.appointments ?? [];
     setAppointments(appts);
-
-    // Pre-select if query param
     if (preselectedApptId) {
       const found = appts.find((a) => a.id === preselectedApptId);
-      if (found) selectAppointment(found);
+      if (found) doSelectAppointment(found);
     }
     setLoading(false);
   }, [params.id, preselectedApptId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  function selectAppointment(appt: WorkerAppointment) {
+  function doSelectAppointment(appt: WorkerAppointment) {
     setSelectedAppt(appt);
     setActiveTest(null);
     setTestData({});
@@ -311,6 +470,21 @@ function ClinicContent() {
     (appt.results ?? []).forEach((r) => { existing[r.test_type] = r.result_status; });
     setSavedResults(existing);
     setShowCert(false);
+  }
+
+  async function selectAppointment(appt: WorkerAppointment) {
+    doSelectAppointment(appt);
+    // Auto check-in: mark as in_progress when selected
+    if (appt.status === "scheduled") {
+      await fetch(`/api/appointments/${appt.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "in_progress" }),
+      });
+      setAppointments((prev) =>
+        prev.map((a) => a.id === appt.id ? { ...a, status: "in_progress" } : a)
+      );
+    }
   }
 
   async function saveTestResult() {
@@ -391,6 +565,14 @@ function ClinicContent() {
           {appointments.map((a) => {
             const cert = Array.isArray(a.certificate) ? a.certificate[0] : a.certificate;
             const isSelected = selectedAppt?.id === a.id;
+            const completedCount = Object.keys(
+              (() => {
+                const m: Record<string, boolean> = {};
+                (a.results ?? []).forEach((r) => { m[r.test_type] = true; });
+                return m;
+              })()
+            ).length;
+            const totalTests = packageTests.length;
             return (
               <button
                 key={a.id}
@@ -402,9 +584,16 @@ function ClinicContent() {
               >
                 <div className="flex items-center justify-between">
                   <p className="text-[13px] text-white truncate">{a.worker?.first_name} {a.worker?.last_name}</p>
-                  {a.status === "completed" ? <Check className="w-3.5 h-3.5 text-green-400 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-[#555] flex-shrink-0" />}
+                  {a.status === "completed"
+                    ? <Check className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                    : a.status === "in_progress"
+                    ? <div className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" />
+                    : <ChevronRight className="w-3.5 h-3.5 text-[#555] flex-shrink-0" />}
                 </div>
                 <p className="text-[11px] text-[#555] font-mono mt-0.5">{a.worker?.id_number}</p>
+                {totalTests > 0 && (
+                  <p className="text-[10px] text-[#444] mt-0.5">{completedCount}/{totalTests} tests</p>
+                )}
                 {cert && (
                   <span className={cn("inline-block text-[10px] px-1.5 py-0.5 rounded-full border font-medium mt-1", FITNESS_STATUS_COLORS[cert.fitness_status as keyof typeof FITNESS_STATUS_COLORS])}>
                     {FITNESS_STATUS_LABELS[cert.fitness_status as keyof typeof FITNESS_STATUS_LABELS]}
@@ -417,14 +606,32 @@ function ClinicContent() {
 
         {/* Right: clinical workspace */}
         {!selectedAppt ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <User className="w-10 h-10 text-[#333] mx-auto mb-3" />
-              <p className="text-[13px] text-[#666]">Select a worker to begin</p>
+          <div className="flex-1 flex flex-col">
+            <DevicePanel
+              connected={connected}
+              error={bridgeError}
+              onConnect={connect}
+              onDisconnect={disconnect}
+              lastDevice={lastDevice}
+            />
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <User className="w-10 h-10 text-[#333] mx-auto mb-3" />
+                <p className="text-[13px] text-[#666]">Select a worker to begin</p>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto flex flex-col">
+            {/* Device panel */}
+            <DevicePanel
+              connected={connected}
+              error={bridgeError}
+              onConnect={connect}
+              onDisconnect={disconnect}
+              lastDevice={lastDevice}
+            />
+
             {/* Worker header */}
             <div className="sticky top-0 bg-[#0f0f0f] border-b border-[#1f1f1f] px-5 py-3 z-10">
               <div className="flex items-center justify-between">
@@ -520,7 +727,14 @@ function ClinicContent() {
               {activeTest && (
                 <div className="bg-[#111] border border-[#1f1f1f] rounded-lg p-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-[14px] font-semibold text-white">{TEST_TYPE_LABELS[activeTest]}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[14px] font-semibold text-white">{TEST_TYPE_LABELS[activeTest]}</h3>
+                      {connected && (
+                        <span className="text-[11px] text-green-500 bg-green-950/30 px-2 py-0.5 rounded-full">
+                          Device ready
+                        </span>
+                      )}
+                    </div>
                     <div className="flex gap-1.5">
                       {STATUS_OPTIONS.map(({ value, label, color }) => (
                         <button

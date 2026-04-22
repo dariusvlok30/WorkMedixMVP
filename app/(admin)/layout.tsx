@@ -1,7 +1,7 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { Toaster } from "@/components/ui/toaster";
-import AdminNav from "@/components/admin/AdminNav";
+import Sidebar from "@/components/admin/Sidebar";
 import { isAdmin } from "@/lib/isAdmin";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -9,11 +9,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (!user) redirect("/admin");
   if (!(await isAdmin())) {
-    // Signed in but not an admin — show access denied
     return (
-      <div className="min-h-screen bg-[#f9f9f9] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0c0c0c] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-[15px] font-semibold text-black">Access Denied</p>
+          <p className="text-[15px] font-semibold text-white">Access Denied</p>
           <p className="text-[13px] text-[#888] mt-1">You don&apos;t have admin access.</p>
         </div>
       </div>
@@ -21,9 +20,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="min-h-screen bg-[#f9f9f9]">
-      <AdminNav />
-      <main className="max-w-6xl mx-auto px-6 py-8">{children}</main>
+    <div className="flex h-screen bg-[#0c0c0c]">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto bg-[#f9f9f9] p-8">{children}</main>
       <Toaster />
     </div>
   );

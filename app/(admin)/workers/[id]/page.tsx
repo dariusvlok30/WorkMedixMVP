@@ -61,6 +61,10 @@ export default async function WorkerDetailPage({ params }: { params: Promise<{ i
               { label: "Race (EEA)", value: worker.race ? worker.race.charAt(0).toUpperCase() + worker.race.slice(1) : "—" },
               { label: "Phone", value: worker.phone ?? "—" },
               { label: "Email", value: worker.email ?? "—" },
+              { label: "Occupation", value: (worker as Record<string,unknown>).occupation as string ?? "—" },
+              { label: "Department", value: (worker as Record<string,unknown>).department as string ?? "—" },
+              { label: "Division", value: (worker as Record<string,unknown>).division as string ?? "—" },
+              { label: "Noise Exposure", value: (worker as Record<string,unknown>).noise_exposure ? "Yes" : "No" },
             ].map(({ label, value }) => (
               <div key={label}>
                 <p className="text-[11px] text-[#555] uppercase tracking-wide mb-0.5">{label}</p>

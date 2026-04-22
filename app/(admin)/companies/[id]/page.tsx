@@ -66,7 +66,6 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 pt-5 border-t border-[#1f1f1f]">
             {[
               { label: "Contact", value: company.contact_person },
-              { label: "Email", value: company.email },
               { label: "Phone", value: company.phone },
               { label: "Address", value: company.address },
             ].map(({ label, value }) => (
@@ -75,6 +74,11 @@ export default async function CompanyDetailPage({ params }: { params: Promise<{ 
                 <p className="text-[13px] text-[#ccc]">{value}</p>
               </div>
             ))}
+            <div>
+              <p className="text-[11px] text-[#555] uppercase tracking-wide mb-0.5">Portal Login Email</p>
+              <p className="text-[13px] text-[#ccc]">{company.email ?? "—"}</p>
+              <p className="text-[10px] text-[#555] mt-0.5">Client logs in with this email at /portal</p>
+            </div>
           </div>
 
           {/* KPIs */}

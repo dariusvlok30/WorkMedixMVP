@@ -13,6 +13,7 @@ import {
   Stethoscope,
   Award,
   Package,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ const navItems = [
   { href: "/certificates", label: "Certificates", icon: Award },
   { href: "/packages", label: "Packages", icon: Package },
   { href: "/bookings", label: "Bookings", icon: CalendarCheck },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export default function Sidebar() {

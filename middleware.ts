@@ -12,9 +12,10 @@ const isAdminRoute = createRouteMatcher([
 ]);
 
 const isUserRoute = createRouteMatcher(["/my-bookings(.*)"]);
+const isPortalRoute = createRouteMatcher(["/portal(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isAdminRoute(req) || isUserRoute(req)) {
+  if (isAdminRoute(req) || isUserRoute(req) || isPortalRoute(req)) {
     await auth.protect();
   }
 });
